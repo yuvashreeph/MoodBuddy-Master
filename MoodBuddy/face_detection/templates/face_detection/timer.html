@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meditation Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f8ff;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        #timer {
+            font-size: 1.5em;
+            color: #ff4500;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1em;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+    <script>
+        let timerRunning = false;
+        let checkingFace = false;
+        let interval;
+        let seconds = 0;
+        let noFaceCount = 0;
+
+        function updateTimerDisplay() {
+            const timerDisplay = document.getElementById('timer');
+            timerDisplay.innerText = "Time: " + seconds + " seconds";
+        }
+
+        async function checkForFace() {
+            // Prevent multiple face-checking calls simultaneously
+            if (checkingFace) return;
+
+            checkingFace = true;
+            const faceDetected = await fetch('/meditation/check-face/')
+                .then(response => response.json())
+                .then(data => data.faceDetected);
+
+            if (!faceDetected) {
+                noFaceCount++;
+                if (noFaceCount >= 3) {
+                    pauseTimer(); // Pause the timer
+                    alert("No face detected! Timer paused. Click OK to resume.");
+                    noFaceCount = 0; // Reset warning count after acknowledgment
+                    resumeTimer(); // Resume the timer
+                }
+            } else {
+                noFaceCount = 0; // Reset count if a face is detected
+            }
+            checkingFace = false;
+        }
+
+        function startTimer() {
+            if (timerRunning) return; // Prevent multiple intervals
+            timerRunning = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('startBtn').disabled = true;
+
+            interval = setInterval(async () => {
+                if (timerRunning) {
+                    seconds++;
+                    updateTimerDisplay();
+                    await checkForFace(); // Check for face every 3 seconds
+                }
+            }, 3000);
+        }
+
+        function pauseTimer() {
+            timerRunning = false;
+            clearInterval(interval);
+            document.getElementById('resumeBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+        }
+
+        function resumeTimer() {
+            if (timerRunning) return;
+            timerRunning = true;
+            document.getElementById('resumeBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+
+            interval = setInterval(async () => {
+                if (timerRunning) {
+                    seconds++;
+                    updateTimerDisplay();
+                    await checkForFace(); // Resume face checks every 3 seconds
+                }
+            }, 3000);
+        }
+
+        function stopTimer() {
+            clearInterval(interval);
+            timerRunning = false;
+            seconds = 0;
+            noFaceCount = 0;
+            updateTimerDisplay();
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('resumeBtn').disabled = true;
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        window.onload = () => {
+            updateTimerDisplay();
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('resumeBtn').disabled = true;
+        };
+    </script>
+</head>
+<body>
+    <h1>Meditation Timer</h1>
+    <div id="timer">Time: 0 seconds</div>
+    <button id="startBtn" onclick="startTimer()">Start</button>
+    <button id="pauseBtn" onclick="pauseTimer()">Pause</button>
+    <button id="resumeBtn" onclick="resumeTimer()">Resume</button>
+    <button onclick="stopTimer()">Stop</button>
+</body>
+</html>
